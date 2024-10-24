@@ -8,9 +8,10 @@ wss.on('connection', (ws) => {
   ws.on('message', (message) => {
     console.log(`Received message => ${message}`);
     // Process the message and send the updated location to all connected clients
-    const deviceId = message.deviceId;
-    const lon = message.lon;
-    const lat = message.lat;
+    const data = JSON.parse(message);
+    const deviceId = data.deviceId;
+    const lon = data.lon;
+    const lat = data.lat;
     wss.clients.forEach((client) => {
       if (client !== ws && client.readyState === WebSocket.OPEN) {
         client.send(JSON.stringify({ deviceId, lon, lat }));

@@ -1,15 +1,19 @@
-// Set up the map
-const map = new ol.Map({
-  target: 'map',
-  layers: [
-    new ol.layer.Tile({
-      source: new ol.source.OSM()
-    })
-  ],
-  view: new ol.View({
-    center: ol.proj.fromLonLat([80.2459, 12.9860]),
-    zoom: 15
-  })
+// Obter a localização atual do dispositivo
+navigator.geolocation.getCurrentPosition(position => {
+  const lat = position.coords.latitude;
+  const lon = position.coords.longitude;
+
+  // Criar o mapa
+  const map = L.map('map').setView([lat, lon], 13);
+
+  // Adicionar o marcador
+  const marker = L.marker([lat, lon]).addTo(map);
+
+  // Adicionar a camada do OpenStreetMap
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a>',
+    subdomains: ['a', 'b', 'c']
+  }).addTo(map);
 });
 
 // Set up the WebSocket connection

@@ -1,50 +1,54 @@
-// Crie um mapa com Leaflet
-var map = L.map('map').setView([-23.5505, -46.6333], 13); // Posição inicial (São Paulo)
-
-// Adicione uma camada de mapa
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a>',
-    subdomains: ['a', 'b', 'c']
-}).addTo(map);
-
-// Conecte-se ao servidor Socket.IO
-var socket = io('http://localhost:3000');
-
-// Função para atualizar a localização de um dispositivo no mapa
-function updateDeviceLocation(deviceId, position) {
-    var lat = position.coords.latitude;
-    var lon = position.coords.longitude;
-    var marker = markers[deviceId];
-    if (!marker) {
-        marker = L.marker([lat, lon]).addTo(map);
-        markers[deviceId] = marker;
-    } else {
-        marker.setLatLng([lat, lon]);
-    }
-}
-
-// Objeto para armazenar os marcadores dos dispositivos
-var markers = {};
-
-// Escute as atualizações de localização dos dispositivos
-socket.on('deviceLocationUpdate', function(data) {
-    updateDeviceLocation(data.deviceId, data.position);
+// Set up the map
+const map = new ol.Map({
+  target: 'map',
+  layers: [
+    new ol.layer.Tile({
+      source: new ol.source.OSM()
+    })
+  ],
+  view: new ol.View({
+    center: ol.proj.fromLonLat([80.2459, 12.9860]),
+    zoom: 15
+  })
 });
 
-// Enviar a localização do dispositivo atual para o servidor
-if (navigator.geolocation) {
-    navigator.geolocation.watchPosition(function(position) {
-        socket.emit('updateDeviceLocation', {
-            deviceId: 'device1', // Substitua por um ID de dispositivo único
-            position: position
-        });
-    }, function(error) {
-        console.error("Erro ao obter localização: ", error);
-    }, {
-        enableHighAccuracy: true, // Habilita alta precisão
-        maximumAge: 0, // Não usa localização em cache
-        timeout: 5000 // Tempo limite para obter a localização
+// Set up the WebSocket connection
+const socket = new WebSocket('ws://localhost:8080');
+
+// Set up the marker layer
+const markerLayer = new ol.layer.Vector({
+  source: new ol.source.Vector({
+    features: []
+  })
+});
+map.addLayer(markerLayer);
+
+// Function to update the marker position
+function updateMarkerPosition(deviceId, lon, lat) {
+  const feature = markerLayer.getSource().getFeatureById(deviceId);
+  if (feature) {
+    feature.setGeometry(new ol.geom.Point(ol.proj.fromLonLat([lon, lat])));
+  } else {
+    const newFeature = new ol.Feature({
+      geometry: new ol.geom.Point(ol.proj.fromLonLat([lon, lat])),
+      id: deviceId
     });
-} else {
-    alert("Geolocalização não é suportada neste navegador.");
+    markerLayer.getSource().addFeature(newFeature);
+  }
 }
+
+// Handle incoming WebSocket messages
+socket.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  updateMarkerPosition(data.deviceId, data.lon, data.lat);
+};
+
+// Handle WebSocket connection close
+socket.onclose = () => {
+  console.log('WebSocket connection closed');
+};
+
+// Handle WebSocket connection error
+socket.onerror = (error) => {
+  console.log('WebSocket connection error:', error);
+};
